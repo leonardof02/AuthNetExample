@@ -3,7 +3,6 @@ using Scalar.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using AuthNetExample.Features.Auth.Services;
-using FluentValidation;
 using Namespace.Features.Shared.Api.ExceptionHandlers;
 using AuthNetExample.Features.Shared.Seeders;
 using Features.JobPosting.Endpoints;
@@ -73,7 +72,7 @@ app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 // Auth Endpoints
 app.AddLoginUserEndpoint();

@@ -14,6 +14,7 @@ public static class IdentityExtension
             options.Password.RequireUppercase = false;
             options.Password.RequiredLength = 6;
         })
+        .AddRoles<IdentityRole>()
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddSignInManager()
         .AddDefaultTokenProviders();

@@ -1,20 +1,27 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 
 public class ApplicationService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public ApplicationService(ApplicationDbContext dbContext)
+    public ApplicationService(ApplicationDbContext dbContext, IHttpContextAccessor httpContextAccessor)
     {
         _dbContext = dbContext;
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task<JobApplication> SubmitApplicationAsync(int jobOfferId, string applicantId)
+    public async Task<JobApplication> SubmitApplicationAsync(int jobOfferId)
     {
+
+        var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? throw new Exception("User is not authenticated.");
+
         var application = new JobApplication
         {
             JobOfferId = jobOfferId,
-            ApplicantId = int.Parse(applicantId),
+            ApplicantId = userId,
             AppliedAt = DateTime.UtcNow,
             Status = ApplicationStatus.Pending
         };
@@ -43,7 +50,7 @@ public class ApplicationService
         );
     }
 
-    public async Task<PaginatedResponse<JobApplication>> GetAllApplicationsByApplicantId(int applicantId, int pageNumber, int pageSize)
+    public async Task<PaginatedResponse<JobApplication>> GetAllApplicationsByApplicantId(string applicantId, int pageNumber, int pageSize)
     {
 
         var applications = await _dbContext.JobApplications

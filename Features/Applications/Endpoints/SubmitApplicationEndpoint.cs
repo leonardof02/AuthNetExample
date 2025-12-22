@@ -1,6 +1,5 @@
-using System.Security.Claims;
 using AuthNetExample.Features.Applications.Models.Requests;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace AuthNetExample.Features.Applications.Endpoints;
 
@@ -10,17 +9,9 @@ public static class SubmitApplicationEndpoint
     {
         app.MapPost("/api/applications", async (
             SubmitApplicationRequest request,
-            ApplicationService applicationService,
-            ClaimsPrincipal claims) =>
+            ApplicationService applicationService) =>
         {
-            var applicantIdString = claims?.FindFirstValue(ClaimTypes.NameIdentifier);
-            
-            if (string.IsNullOrEmpty(applicantIdString))
-            {
-                return Results.Unauthorized();
-            }
-
-            var application = await applicationService.SubmitApplicationAsync(request.JobOfferId, applicantIdString);
+            var application = await applicationService.SubmitApplicationAsync(request.JobOfferId);
             
             return Results.Created($"/api/applications/{application.Id}", new
             {
@@ -31,7 +22,12 @@ public static class SubmitApplicationEndpoint
                 Status = application.Status.ToString()
             });
         })
-        .RequireAuthorization()
+        .RequireAuthorization(
+            new AuthorizeAttribute
+            {
+                Roles = "applicant"
+            }
+        )
         .WithName("SubmitApplication")
         .WithTags("Applications")
         .WithOpenApi();

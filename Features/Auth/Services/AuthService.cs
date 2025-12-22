@@ -115,7 +115,7 @@ public class AuthService
         });
     }
 
-    public async Task<Result<AuthResponse>> SignInWithGithubAsync(string email, string nameIdentifier) {
+    public async Task<Result<AuthResponse>> SignInWithGithubAsync(string email, string nameIdentifier, string role = "user") {
         
         if (email == null || nameIdentifier == null)
         {
@@ -137,10 +137,11 @@ public class AuthService
                 {
                     UserName = email,
                     Email = email,
-                    EmailConfirmed = true
+                    EmailConfirmed = true,
                 };
 
                 var createResult = await _userManager.CreateAsync(existingUser);
+                await _userManager.AddToRoleAsync(existingUser, role);
 
                 if (!createResult.Succeeded)
                 {
@@ -153,6 +154,7 @@ public class AuthService
 
             var loginInfo = new UserLoginInfo("GitHub", nameIdentifier, "GitHub");
             var addLoginResult = await _userManager.AddLoginAsync(existingUser, loginInfo);
+            await _userManager.AddToRoleAsync(existingUser, role);
 
             if (!addLoginResult.Succeeded)
             {
