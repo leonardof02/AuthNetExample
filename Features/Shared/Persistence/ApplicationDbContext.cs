@@ -1,0 +1,120 @@
+using AuthNetExample.Features.Auth.Models;
+using Features.JobPosting.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+
+public class ApplicationDbContext : IdentityDbContext<IdentityUser>
+{
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<JobOffer> JobOffers => Set<JobOffer>();
+    public DbSet<JobApplication> JobApplications => Set<JobApplication>();
+    public DbSet<Company> Companies => Set<Company>();
+    public DbSet<ApplicantProfile> ApplicantProfiles => Set<ApplicantProfile>();
+    public DbSet<RecruiterProfile> RecruiterProfiles => Set<RecruiterProfile>();
+
+
+    private readonly DatabaseSettings _options;
+
+    public ApplicationDbContext(IOptions<DatabaseSettings> options)
+    {
+        _options = options.Value;
+    }
+    
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseSqlite(_options.ConnectionString);
+    }
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        builder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Token);
+
+            entity.Property(e => e.Token).IsRequired();
+            entity.Property(e => e.ExpiresAt).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne<IdentityUser>()
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .IsRequired();
+        });
+
+        builder.Entity<JobOffer>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Title).IsRequired();
+            entity.Property(e => e.Description).IsRequired();
+            entity.Property(e => e.EmployerId).IsRequired();
+            entity.Property(e => e.Location).IsRequired();
+            entity.Property(e => e.PostedDate).IsRequired();
+            entity.Property(e => e.MinSalary).IsRequired();
+            entity.Property(e => e.MaxSalary).IsRequired();
+        });
+
+        builder.Entity<JobApplication>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.JobOfferId).IsRequired();
+            entity.Property(e => e.ApplicantId).IsRequired();
+            entity.Property(e => e.AppliedAt).IsRequired();
+            entity.Property(e => e.Status).IsRequired();
+
+            entity.HasOne<JobOffer>()
+                  .WithMany()
+                  .HasForeignKey(e => e.JobOfferId)
+                  .IsRequired();
+        });
+
+        builder.Entity<Company>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name).IsRequired();
+            entity.Property(e => e.Description);
+            entity.Property(e => e.Email);
+            entity.Property(e => e.PhoneNumber);
+            entity.Property(e => e.Website);
+
+            entity.HasOne<IdentityUser>()
+                  .WithMany()
+                  .HasForeignKey(e => e.RecruiterId)
+                  .IsRequired();
+        });
+
+        builder.Entity<ApplicantProfile>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.FullName).IsRequired();
+            entity.Property(e => e.UserId).IsRequired();
+            entity.Property(e => e.CvUrl);
+            entity.Property(e => e.WebsiteUrl);
+
+            entity.HasOne<IdentityUser>()
+                  .WithOne()
+                  .HasForeignKey<ApplicantProfile>(e => e.UserId)
+                  .IsRequired();
+        });
+
+        builder.Entity<RecruiterProfile>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.FullName).IsRequired();
+            entity.Property(e => e.UserId).IsRequired();
+
+            entity.HasOne<IdentityUser>()
+                  .WithOne()
+                  .HasForeignKey<RecruiterProfile>(e => e.UserId)
+                  .IsRequired();
+        });
+    }
+}
