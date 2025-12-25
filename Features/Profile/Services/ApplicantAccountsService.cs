@@ -1,6 +1,8 @@
 using System.Security.Claims;
-using AuthNetExample.Features.Profile.Endpoints;
+using Features.Profile.Models.Requests;
 using Microsoft.EntityFrameworkCore;
+
+namespace Features.Profile.Services;
 
 public class ApplicantAccountService
 {
@@ -13,11 +15,14 @@ public class ApplicantAccountService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task<ApplicantProfile> CreateApplicantProfileAsync(ApplicantProfileRequest request)
+    public async Task<ApplicantProfile> CreateApplicantProfileAsync(CreateApplicantProfileRequest request)
     {
 
         var userId = (_httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier))
             ?? throw new Exception("User is not authenticated.");
+
+        var user = await _dbContext.Users.FindAsync(userId) ?? throw new Exception("User not found.");
+        if (user.IsOnboardingCompleted) throw new Exception("User has already completed onboarding and have a profile.");
 
         var profile = new ApplicantProfile
         {
@@ -32,8 +37,9 @@ public class ApplicantAccountService
         };
 
         _dbContext.ApplicantProfiles.Add(profile);
-        await _dbContext.SaveChangesAsync();
+        user.IsOnboardingCompleted = true;
 
+        await _dbContext.SaveChangesAsync();
         return profile;
     }
 
@@ -43,22 +49,24 @@ public class ApplicantAccountService
             .FirstOrDefaultAsync(p => p.UserId == userId);
     }
 
-    public async Task<ApplicantProfile?> UpdateApplicantProfileAsync(ApplicantProfileRequest request, int profileId)
+    public async Task<ApplicantProfile> UpdateApplicantProfileAsync(UpdateApplicantRequest request, int profileId)
     {
-        var profile = await _dbContext.ApplicantProfiles.FindAsync(profileId);
 
-        if (profile == null)
-        {
-            return null;
-        }
+        var profile = await _dbContext.ApplicantProfiles.FindAsync(profileId) ??
+            throw new Exception("Profile not found.");
 
-        profile.FullName = request.FullName;
-        profile.ProfileTitle = request.ProfileTitle;
-        profile.Bio = request.Bio;
-        profile.CvUrl = request.CvUrl;
-        profile.WebsiteUrl = request.WebsiteUrl;
-        profile.ContactPhone = request.ContactPhone;
-        profile.ContactEmail = request.ContactEmail;
+        var userId = (_httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier))
+            ?? throw new Exception("User is not authenticated.");
+
+        if (profile.UserId != userId)
+            throw new Exception("User is not authorized to update this profile.");
+
+        if (!string.IsNullOrEmpty(request.FullName)) profile.FullName = request.FullName;
+        if (!string.IsNullOrEmpty(request.ProfileTitle)) profile.ProfileTitle = request.ProfileTitle;
+        if (!string.IsNullOrEmpty(request.Bio)) profile.Bio = request.Bio;
+        if (!string.IsNullOrEmpty(request.WebsiteUrl)) profile.WebsiteUrl = request.WebsiteUrl;
+        if (!string.IsNullOrEmpty(request.ContactPhone)) profile.ContactPhone = request.ContactPhone;
+        if (!string.IsNullOrEmpty(request.ContactEmail)) profile.ContactEmail = request.ContactEmail;
 
         await _dbContext.SaveChangesAsync();
 

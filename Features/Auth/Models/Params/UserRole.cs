@@ -4,7 +4,7 @@ public record UserRole : IParsable<UserRole>
 {
     
     public static readonly UserRole Recruiter = new("recruiter");
-    public static readonly UserRole ApplicationUser = new("user");
+    public static readonly UserRole ApplicationUser = new("applicant");
 
     public string Value { get; init; }
 
@@ -21,7 +21,7 @@ public record UserRole : IParsable<UserRole>
         result = s?.ToLower() switch
         {
             "recruiter" => Recruiter,
-            "user" => ApplicationUser,
+            "applicant" => ApplicationUser,
             _ => null!
         };
         return result != null;

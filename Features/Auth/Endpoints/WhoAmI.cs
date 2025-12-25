@@ -7,7 +7,7 @@ public static class WhoAmI
 
     public static void AddWhoAmIEndpoint(this WebApplication app)
     {
-        app.MapGet(Route, async (ClaimsPrincipal claims, UserManager<IdentityUser> userManager) =>
+        app.MapGet(Route, async (ClaimsPrincipal claims, UserManager<Features.Shared.Persistence.ApplicationUser> userManager) =>
         {
             var userId = claims.FindFirstValue(ClaimTypes.NameIdentifier);
             var username = claims.FindFirstValue(ClaimTypes.Name);

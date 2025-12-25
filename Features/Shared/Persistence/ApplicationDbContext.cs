@@ -1,11 +1,12 @@
 using AuthNetExample.Features.Auth.Models;
 using Features.JobPosting.Models;
+using Features.Shared.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-public class ApplicationDbContext : IdentityDbContext<IdentityUser>
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<JobOffer> JobOffers => Set<JobOffer>();
@@ -13,7 +14,6 @@ public class ApplicationDbContext : IdentityDbContext<IdentityUser>
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<ApplicantProfile> ApplicantProfiles => Set<ApplicantProfile>();
     public DbSet<RecruiterProfile> RecruiterProfiles => Set<RecruiterProfile>();
-
 
     private readonly DatabaseSettings _options;
 
@@ -39,10 +39,11 @@ public class ApplicationDbContext : IdentityDbContext<IdentityUser>
             entity.Property(e => e.ExpiresAt).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
 
-            entity.HasOne<IdentityUser>()
+            entity.HasOne<ApplicationUser>()
                   .WithMany()
                   .HasForeignKey(e => e.UserId)
-                  .IsRequired();
+                  .IsRequired()
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<JobOffer>(entity =>
@@ -83,7 +84,7 @@ public class ApplicationDbContext : IdentityDbContext<IdentityUser>
             entity.Property(e => e.PhoneNumber);
             entity.Property(e => e.Website);
 
-            entity.HasOne<IdentityUser>()
+            entity.HasOne<ApplicationUser>()
                   .WithMany()
                   .HasForeignKey(e => e.RecruiterId)
                   .IsRequired();
@@ -98,7 +99,7 @@ public class ApplicationDbContext : IdentityDbContext<IdentityUser>
             entity.Property(e => e.CvUrl);
             entity.Property(e => e.WebsiteUrl);
 
-            entity.HasOne<IdentityUser>()
+            entity.HasOne<ApplicationUser>()
                   .WithOne()
                   .HasForeignKey<ApplicantProfile>(e => e.UserId)
                   .IsRequired();
@@ -111,7 +112,7 @@ public class ApplicationDbContext : IdentityDbContext<IdentityUser>
             entity.Property(e => e.FullName).IsRequired();
             entity.Property(e => e.UserId).IsRequired();
 
-            entity.HasOne<IdentityUser>()
+            entity.HasOne<ApplicationUser>()
                   .WithOne()
                   .HasForeignKey<RecruiterProfile>(e => e.UserId)
                   .IsRequired();

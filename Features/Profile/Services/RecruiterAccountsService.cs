@@ -1,20 +1,12 @@
-
 using System.Security.Claims;
+using Features.Profile.Models.Requests;
 using Microsoft.EntityFrameworkCore;
 
 namespace AuthNetExample.Features.Profile.Services;
 
-public record RecruiterProfileRequest(
-    string FullName,
-    string ProfileTitle,
-    string Bio,
-    string ContactPhone,
-    string ContactEmail
-);
-
 public class RecruiterAccountsService
 {
-    
+
     private readonly ApplicationDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -24,10 +16,13 @@ public class RecruiterAccountsService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task<RecruiterProfile> CreateRecruiterAccountAsync(RecruiterProfileRequest profile)
+    public async Task<RecruiterProfile> CreateRecruiterAccountAsync(CreateRecruiterProfileRequest profile)
     {
         var userId = (_httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier))
             ?? throw new Exception("User is not authenticated.");
+
+        var user = await _dbContext.Users.FindAsync(userId) ?? throw new Exception("User not found.");
+        if (user.IsOnboardingCompleted) throw new Exception("User has already completed onboarding and have a profile.");
 
         var recruiterProfile = new RecruiterProfile
         {
@@ -40,6 +35,8 @@ public class RecruiterAccountsService
         };
 
         _dbContext.RecruiterProfiles.Add(recruiterProfile);
+        user.IsOnboardingCompleted = true;
+
         await _dbContext.SaveChangesAsync();
         return recruiterProfile;
     }
@@ -50,20 +47,28 @@ public class RecruiterAccountsService
             .FirstOrDefaultAsync(p => p.UserId == userId);
     }
 
-    public async Task<RecruiterProfile?> UpdateRecruiterProfileAsync(RecruiterProfileRequest request, int profileId)
+    public async Task<RecruiterProfile> UpdateRecruiterProfileAsync(UpdateRecruiterRequest request, int profileId)
     {
-        var profile = await _dbContext.RecruiterProfiles.FindAsync(profileId);
+        var profile = await _dbContext.RecruiterProfiles.FindAsync(profileId)
+            ?? throw new Exception("Profile not found.");
 
-        if (profile == null)
-        {
-            return null;
-        }
+        var userId = (_httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier))
+            ?? throw new Exception("User is not authenticated.");
 
-        profile.FullName = request.FullName;
-        profile.ProfileTitle = request.ProfileTitle;
-        profile.Bio = request.Bio;
-        profile.ContactPhone = request.ContactPhone;
-        profile.ContactEmail = request.ContactEmail;
+        if (profile.UserId != userId)
+            throw new Exception("User is not authorized to update this profile.");
+
+
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+            profile.FullName = request.FullName;
+        if (!string.IsNullOrWhiteSpace(request.ProfileTitle))
+            profile.ProfileTitle = request.ProfileTitle;
+        if (!string.IsNullOrWhiteSpace(request.Bio))
+            profile.Bio = request.Bio;
+        if (!string.IsNullOrWhiteSpace(request.ContactPhone))
+            profile.ContactPhone = request.ContactPhone;
+        if (!string.IsNullOrWhiteSpace(request.ContactEmail))
+            profile.ContactEmail = request.ContactEmail;
 
         await _dbContext.SaveChangesAsync();
 
@@ -75,14 +80,14 @@ public class RecruiterAccountsService
         var userId = (_httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier))
             ?? throw new Exception("User is not authenticated.");
 
-        var company = await _dbContext.Companies.FindAsync(companyId) ?? throw new Exception("Company not found.");;
+        var company = await _dbContext.Companies.FindAsync(companyId) ?? throw new Exception("Company not found."); ;
         var recruiterProfile = await _dbContext.RecruiterProfiles
             .FirstOrDefaultAsync(p => p.UserId == userId)
             ?? throw new Exception("Recruiter profile not found.");
 
 
         company.RecruiterId = userId;
-        
+
         await _dbContext.SaveChangesAsync();
         return true;
     }

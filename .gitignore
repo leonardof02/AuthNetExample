@@ -78,3 +78,9 @@ Thumbs.db
 # Runtime configuration files
 *.runtimeconfig.json
 *.runtimeconfig.dev.json
+
+# SQLite temporary files
+app.db-shm
+app.db-wal
+authnetexample.db-shm
+authnetexample.db-wal

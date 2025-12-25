@@ -1,17 +1,23 @@
 
-using Scalar.AspNetCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
+
+using AuthNetExample.Features.Applications.Endpoints;
 using AuthNetExample.Features.Auth.Services;
-using Namespace.Features.Shared.Api.ExceptionHandlers;
+using AuthNetExample.Features.Profile.Endpoints;
+using AuthNetExample.Features.Profile.Services;
 using AuthNetExample.Features.Shared.Seeders;
+using Features.Auth.Endpoints;
+using Features.Auth.Extensions;
 using Features.JobPosting.Endpoints;
 using Features.JobPosting.Services;
-using AuthNetExample.Features.Applications.Endpoints;
-using Features.Auth.Endpoints;
+using Features.Profile.Endpoints;
+using Features.Profile.Services;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Namespace.Features.Shared.Api.ExceptionHandlers;
+using Scalar.AspNetCore;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddExceptionHandler<GlobalSerializationExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -29,33 +35,37 @@ builder.Services
     .Bind(builder.Configuration.GetSection("JwtSettings"));
 
 builder.Services.AddDbContext<ApplicationDbContext>();
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+builder.Services.AddIdentityServices();
 
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
 })
-.AddIdentityServices()
 .AddCookie(CookieAuthenticationDefaults.AuthenticationScheme, options =>
 {
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.None;
+})
+.AddGitHubProvider(builder.Configuration)
+.AddJwtAuthentication(builder.Configuration);
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddFirstTimeUsingTheAppPolicyService();
 });
-
-
-builder.Services
-    .AddAuthentication()
-    .AddGitHubProvider(builder.Configuration)
-    .AddJwtAuthentication(builder.Configuration);
-
-builder.Services.AddAuthorization();
 
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JobPostingService>();
 builder.Services.AddScoped<ApplicationService>();
+builder.Services.AddScoped<ApplicantAccountService>();
+builder.Services.AddScoped<RecruiterAccountsService>();
 builder.Services.AddScoped<DatabaseSeeder>();
+builder.Services.AddScoped<TokenService>();
+
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddOpenApi();
 
@@ -74,11 +84,13 @@ app.UseAuthorization();
 
 // app.UseHttpsRedirection();
 
+
 // Auth Endpoints
 app.AddLoginUserEndpoint();
 app.AddRefreshTokenEndpoint();
 app.AddWhoAmIEndpoint();
 app.AddSignInWithGithubEndpoint();
+app.MapRegisterUserEndpoint();
 
 // Job Posting Endpoints
 app.AddGetJobOfferByIdEndpoint();
@@ -94,6 +106,12 @@ app.AddGetApplicationsEndpoint();
 app.AddGetApplicationsByJobOfferEndpoint();
 app.AddUpdateApplicationStatusEndpoint();
 app.AddDeleteApplicationEndpoint();
+
+// Acounts
+app.AddCreateApplicantAccountEndpoint();
+app.AddCreateRecruiterAccountEndpoint();
+app.AddEditApplicantAccountEndpoint();
+app.AddEditRecruiterAccountEndpoint();
 
 if (app.Environment.IsDevelopment())
 {

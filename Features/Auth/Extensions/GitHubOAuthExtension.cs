@@ -32,7 +32,7 @@ public static class GitHubOAuthExtension
                     OnCreatingTicket = async context =>
                     {
                         var role = context.Properties.Items["role"];
-                        context.Identity?.AddClaim(new Claim(ClaimTypes.Role, role ?? "user"));
+                        context.Identity?.AddClaim(new Claim(ClaimTypes.Role, role ?? "applicant"));
                         await Task.CompletedTask;
                     }
                 };

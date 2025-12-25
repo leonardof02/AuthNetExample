@@ -1,0 +1,12 @@
+
+@applicant_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZmZmMDM4OS1kZTQ3LTQ4MDAtYjUzZC0yZjI0ZGFlZmE2YTAiLCJlbWFpbCI6ImFheGNjenhAbWFpbC5jb20iLCJ1bmlxdWVfbmFtZSI6ImFheGNjengiLCJpc19vbmJvYXJkaW5nX2NvbXBsZXRlZCI6IlRydWUiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJhcHBsaWNhbnQiLCJleHAiOjE3NjY3MDQ3NTAsImlzcyI6IlRoaXNBcHAiLCJhdWQiOiJUaGlzQXBwVXNlcnMifQ.F2oQ-8W1tya42jsGdyetoBQ9jcccyhSl_ks8A64tDA0
+@host = http://localhost:5122
+
+PATCH  {{host}}/profile/applicant/1
+Content-Type: application/json
+Authorization: Bearer {{applicant_token}}
+
+{
+    "fullName": "Alejandro",
+    "phoneNumber": "+1234567890"
+}

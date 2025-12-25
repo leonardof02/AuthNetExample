@@ -1,221 +1,53 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using AuthNetExample.Features.Auth.Models;
-using AuthNetExample.Features.Shared.Core;
-using AuthNetExample.Features.Auth.Errors;
-using System.Security.Cryptography;
+using AuthNetExample.Features.Auth.Models.Constants;
 using Features.Auth.Models.Requests.RegisterRequest;
 using Features.Shared.Persistence;
+using Microsoft.AspNetCore.Identity;
 
 namespace AuthNetExample.Features.Auth.Services;
 
 public class AuthService
 {
-    private readonly UserManager<IdentityUser> _userManager;
-    private readonly SignInManager<IdentityUser> _signInManager;
-    private readonly JwtSettings _jwtSettings;
-
-    private readonly ApplicationDbContext _dbContext;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly TokenService _tokenService;
 
     public AuthService(
-        UserManager<IdentityUser> userManager,
-        SignInManager<IdentityUser> signInManager,
-        IOptions<JwtSettings> jwtSettings,
-        ApplicationDbContext dbContext
-    )
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        RoleManager<IdentityRole> roleManager,
+        TokenService tokenService
+        )
     {
         _userManager = userManager;
         _signInManager = signInManager;
-        _jwtSettings = jwtSettings.Value;
-        _dbContext = dbContext;
+        _roleManager = roleManager;
+        _tokenService = tokenService;
     }
 
-    public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request)
+    public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
-        var user = await _userManager.FindByEmailAsync(request.Email);
-
-        if (user == null)
-        {
-            return Result.Failure<AuthResponse>(new LoginError
-            {
-                Message = "Invalid email or password."
-            });
-        }
-
+        var user = await _userManager.FindByEmailAsync(request.Email) ?? throw new Exception("Invalid login attempt.");
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
 
-        if (!result.Succeeded)
+        if (!result.Succeeded) throw new Exception("Invalid credentials.");
+
+        var token = await GenerateJwtTokenForUserAsync(user);
+
+        return new LoginResponse
         {
-            return Result.Failure<AuthResponse>(new LoginError
-            {
-                Message = "Invalid email or password."
-            });
-        }
-
-        var roles = await _userManager.GetRolesAsync(user);
-        var token = GenerateJwtToken(user, roles);
-        var refreshToken = GenerateRefreshToken(user.Id);
-        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes);
-        
-        _dbContext.RefreshTokens.Add(refreshToken);
-        await _dbContext.SaveChangesAsync();
-
-        return Result.Success(new AuthResponse
-        {
-            Token = token,
-            Email = user.Email!,
-            ExpiresAt = expiresAt,
-            RefreshToken = refreshToken.Token
-        });
-    }
-
-    public async Task<Result<AuthResponse>> RefreshTokenAsync(string token)
-    {
-        var refreshToken = await _dbContext.RefreshTokens.FindAsync(token);
-
-        if (refreshToken == null || !refreshToken.IsActive)
-        {
-            return Result.Failure<AuthResponse>(new RefreshTokenError
-            {
-                Message = "Invalid or expired refresh token."
-            });
-        }
-
-        var user = await _userManager.FindByIdAsync(refreshToken.UserId.ToString());
-        
-        if (user == null)
-        {
-            return Result.Failure<AuthResponse>(new RefreshTokenError
-            {
-                Message = "User not found."
-            });
-        }
-
-        var roles = await _userManager.GetRolesAsync(user);
-        var newJwtToken = GenerateJwtToken(user, roles);
-        var newRefreshToken = GenerateRefreshToken(user.Id);
-        
-        refreshToken.Revoke();
-
-        _dbContext.RefreshTokens.Add(newRefreshToken);
-        await _dbContext.SaveChangesAsync();
-
-        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes);
-
-        return Result.Success(new AuthResponse
-        {
-            Token = newJwtToken,
-            Email = user.Email!,
-            ExpiresAt = expiresAt,
-            RefreshToken = newRefreshToken.Token
-        });
-    }
-
-    public async Task<Result<AuthResponse>> SignInWithGithubAsync(string email, string nameIdentifier, string role = "user") {
-        
-        if (email == null || nameIdentifier == null)
-        {
-            return Result.Failure<AuthResponse>(new ExternalAuthError
-            {
-                Message = "Email or NameIdentifier claim not found."
-            });
-        }
-
-        var existingUser = await _userManager.FindByLoginAsync("GitHub", nameIdentifier);
-        
-        if (existingUser == null)
-        {
-            existingUser = await _userManager.FindByEmailAsync(email);
-
-            if (existingUser == null)
-            {
-                existingUser = new IdentityUser
-                {
-                    UserName = email,
-                    Email = email,
-                    EmailConfirmed = true,
-                };
-
-                var createResult = await _userManager.CreateAsync(existingUser);
-                await _userManager.AddToRoleAsync(existingUser, role);
-
-                if (!createResult.Succeeded)
-                {
-                    return Result.Failure<AuthResponse>(new ExternalAuthError
-                    {
-                        Message = "Error creating user."
-                    });
-                }
-            }
-
-            var loginInfo = new UserLoginInfo("GitHub", nameIdentifier, "GitHub");
-            var addLoginResult = await _userManager.AddLoginAsync(existingUser, loginInfo);
-            await _userManager.AddToRoleAsync(existingUser, role);
-
-            if (!addLoginResult.Succeeded)
-            {
-                return Result.Failure<AuthResponse>(new ExternalAuthError
-                {
-                    Message = "Error adding external login."
-                });
-            }
-        }
-
-        var roles = await _userManager.GetRolesAsync(existingUser);
-        var token = GenerateJwtToken(existingUser, roles);
-        var refreshToken = GenerateRefreshToken(existingUser.Id);
-        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes);
-
-        _dbContext.RefreshTokens.Add(refreshToken);
-        await _dbContext.SaveChangesAsync();
-
-        return Result.Success(new AuthResponse
-        {
-            Token = token,
-            Email = existingUser.Email!,
-            ExpiresAt = expiresAt,
-            RefreshToken = refreshToken.Token
-        });
-    }
-
-    private string GenerateJwtToken(IdentityUser user, IList<string>? roles = null)
-    {
-        var claims = new List<Claim>
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email!),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            Token = token.JwtToken,
+            Email = user.Email ?? string.Empty,
+            RefreshToken = token.RefreshToken,
+            ExpiresAt = token.ExpiresAt
         };
-
-        // Add roles to claims if provided
-        if (roles != null && roles.Any())
-        {
-            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
-        }
-
-        claims.Add(new Claim(ClaimTypes.Name, user.UserName ?? ""));
-        claims.Add(new Claim("onboarding_completed", user is ApplicationUser appUser ? appUser.IsOnboardingCompleted.ToString() : "false"));
-
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var token = new JwtSecurityToken(
-            issuer: _jwtSettings.Issuer,
-            audience: _jwtSettings.Audience,
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes),
-            signingCredentials: creds
-        );
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    public async Task<Result<AuthResponse>> RegisterUserAsync(RegisterUserRequest request)
+    public async Task<RegisterResponse> RegisterUserAsync(RegisterUserRequest request)
     {
+
         var newUser = new ApplicationUser
         {
             UserName = request.Username,
@@ -224,49 +56,168 @@ public class AuthService
             IsOnboardingCompleted = false
         };
 
-        await _userManager.CreateAsync(newUser);
-        await _userManager.AddToRoleAsync(newUser, request.Role.ToString());
+        var createUserResult = await _userManager.CreateAsync(newUser, request.Password);
 
-        var token = GenerateJwtToken(newUser, new List<string> { request.Role });
-        var refreshToken = GenerateRefreshToken(newUser.Id);
-        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes);
-
-        _dbContext.RefreshTokens.Add(refreshToken);
-        await _dbContext.SaveChangesAsync();
-        
-        return Result.Success(new AuthResponse
+        if (!createUserResult.Succeeded)
         {
-            Token = token,
-            Email = newUser.Email!,
-            ExpiresAt = expiresAt,
-            RefreshToken = refreshToken.Token
-        });
-    }
+            var errors = string.Join(", ", createUserResult.Errors.Select(e => e.Description));
+            throw new Exception(
+                message: "User registration failed",
+                innerException: new Exception(errors)
+            );
+        }
 
+        var existentRole = await _roleManager.FindByNameAsync(request.Role) ?? throw new Exception($"Role '{request.Role}' does not exist in the database.");
 
-    private RefreshToken GenerateRefreshToken(string userId)
-    {
-        var refreshToken = new RefreshToken(userId: userId)
+        var asignRoleResult = await _userManager.AddToRoleAsync(newUser, request.Role);
+        if (!asignRoleResult.Succeeded)
         {
-            Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            var errors = string.Join(", ", asignRoleResult.Errors.Select(e => e.Description));
+            throw new Exception(
+                message: "Assigning role to user failed",
+                innerException: new Exception(errors)
+            );
+        }
+
+        var token = await GenerateJwtTokenForUserAsync(newUser);
+
+        return new RegisterResponse
+        {
+            Email = newUser.Email,
+            UserId = newUser.Id,
+            UserName = newUser.UserName,
+            Role = request.Role,
+            RegisteredAt = DateTime.UtcNow,
+            Token = token.JwtToken,
+            RefreshToken = token.RefreshToken
         };
-        return refreshToken;
     }
 
-    // Public methods for external authentication
-    public async Task<(string Token, DateTime ExpiresAt)> GenerateJwtTokenForUser(IdentityUser user)
+    public async Task<LoginResponse> SignInWithGithubAsync(string githubEmail, string githubUsername)
+    {
+        var githubUser = await _userManager.FindByLoginAsync("GitHub", githubUsername);
+
+        // If user exists, generate token and return
+        if (githubUser != null)
+        {
+            var userToken = await GenerateJwtTokenForUserAsync(githubUser);
+            return new LoginResponse
+            {
+                Token = userToken.JwtToken,
+                Email = githubUser.Email ?? string.Empty,
+                RefreshToken = userToken.RefreshToken,
+                ExpiresAt = userToken.ExpiresAt
+            };
+        }
+
+        var user = await _userManager.FindByEmailAsync(githubEmail);
+        if (user != null)
+        {
+            // Link GitHub login to existing user
+            var loginWithGithubResult = await _userManager.AddLoginAsync(user, new UserLoginInfo("GitHub", githubUsername, "GitHub"));
+            if (!loginWithGithubResult.Succeeded)
+            {
+                var errors = string.Join(", ", loginWithGithubResult.Errors.Select(e => e.Description));
+                throw new Exception(
+                    message: "Linking GitHub login to existing user failed",
+                    innerException: new Exception(errors)
+                );
+            }
+
+            var userToken = await GenerateJwtTokenForUserAsync(user);
+
+            return new LoginResponse
+            {
+                Token = userToken.JwtToken,
+                Email = user.Email ?? string.Empty,
+                RefreshToken = userToken.RefreshToken,
+                ExpiresAt = userToken.ExpiresAt
+            };
+        }
+
+        // If user does not exist, create new user
+        var newUser = new ApplicationUser
+        {
+            UserName = githubUsername,
+            Email = githubEmail,
+            EmailConfirmed = true,
+            IsOnboardingCompleted = false
+        };
+
+        var createUserResult = await _userManager.CreateAsync(newUser);
+        if (!createUserResult.Succeeded)
+        {
+            var errors = string.Join(", ", createUserResult.Errors.Select(e => e.Description));
+            throw new Exception(
+                message: "GitHub user registration failed",
+                innerException: new Exception(errors)
+            );
+        }
+
+        // Assign Applicant role to new GitHub user
+
+        var assignRoleResult = await _userManager.AddToRoleAsync(newUser, AppRoles.Applicant);
+        if (!assignRoleResult.Succeeded)
+        {
+            var errors = string.Join(", ", assignRoleResult.Errors.Select(e => e.Description));
+            throw new Exception(
+                message: "Assigning Applicant role to GitHub user failed",
+                innerException: new Exception(errors)
+            );
+        }
+
+        // Register github login
+
+        var result = await _userManager.AddLoginAsync(newUser, new UserLoginInfo("GitHub", githubUsername, "GitHub"));
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            throw new Exception(
+                message: "Linking GitHub login to user failed",
+                innerException: new Exception(errors)
+            );
+        }
+
+        var token = await GenerateJwtTokenForUserAsync(newUser);
+
+        return new LoginResponse
+        {
+            Token = token.JwtToken,
+            Email = newUser.Email ?? string.Empty,
+            RefreshToken = token.RefreshToken,
+            ExpiresAt = token.ExpiresAt
+        };
+    }
+
+    public async Task<GeneratedToken> RefreshTokenAsync(string refreshToken)
+    {
+        var principal = _tokenService.GetPrincipalFromExpiredToken(refreshToken);
+        var email = principal.FindFirstValue(AppClaims.Email);
+
+        if (email == null) throw new Exception("Invalid token.");
+
+        var user = await _userManager.FindByEmailAsync(email) ?? throw new Exception("User not found.");
+        var isValidRefreshToken = await _tokenService.IsValidRefreshTokenAsync(refreshToken, user.Id);
+    
+        if (!isValidRefreshToken) throw new Exception("Invalid refresh token.");
+
+        return await GenerateJwtTokenForUserAsync(user);
+    }
+
+    private async Task<GeneratedToken> GenerateJwtTokenForUserAsync(ApplicationUser user)
     {
         var roles = await _userManager.GetRolesAsync(user);
-        var token = GenerateJwtToken(user, roles);
-        var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes);
-        return (token, expiresAt);
-    }
+        if (roles.Count == 0) throw new Exception("User has no roles assigned.");
 
-    public async Task<string> GenerateAndSaveRefreshToken(string userId)
-    {
-        var refreshToken = GenerateRefreshToken(userId);
-        _dbContext.RefreshTokens.Add(refreshToken);
-        await _dbContext.SaveChangesAsync();
-        return refreshToken.Token;
+        List<Claim> claims = [
+            new Claim(AppClaims.UserId, user.Id),
+            new Claim(AppClaims.Email, user.Email ?? string.Empty),
+            new Claim(AppClaims.UserName, user.UserName ?? string.Empty),
+            new Claim(AppClaims.IsOnboardingCompleted, user.IsOnboardingCompleted.ToString())
+        ];
+
+        foreach (var role in roles) claims.Add(new Claim(AppClaims.Role, role));
+
+        return await _tokenService.GenerateJwtToken(user, claims);
     }
 }

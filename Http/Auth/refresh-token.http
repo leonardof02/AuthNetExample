@@ -1,0 +1,8 @@
+@host = http://localhost:5122
+
+POST {{host}}/auth/refresh
+Content-Type: application/json
+
+{
+    "refreshToken": "qDkAPHpwtd+aeits6jdgWTWjV1BkT745oOlOiAVCB1s="
+}

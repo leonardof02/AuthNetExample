@@ -1,0 +1,16 @@
+
+@applicant_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZmZmMDM4OS1kZTQ3LTQ4MDAtYjUzZC0yZjI0ZGFlZmE2YTAiLCJlbWFpbCI6ImFheGNjenhAbWFpbC5jb20iLCJ1bmlxdWVfbmFtZSI6ImFheGNjengiLCJpc19vbmJvYXJkaW5nX2NvbXBsZXRlZCI6IkZhbHNlIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiYXBwbGljYW50IiwiZXhwIjoxNzY2NzAxNTkwLCJpc3MiOiJUaGlzQXBwIiwiYXVkIjoiVGhpc0FwcFVzZXJzIn0.d8qiUMScIec1W4GyoYACi_Cgw040O7fLMWGaTqWZ3m8
+@host = http://localhost:5122
+
+POST {{host}}/profile/applicant
+Content-Type: application/json
+Authorization: Bearer {{applicant_token}}
+
+{
+    "fullName": "Leozz Andre",
+    "contactEmail": "leozzandre@example.com",
+    "profileTitle": "Senior Developer",
+    "bio": "Experienced developer with a passion for building scalable web applications.",
+    "cvUrl": "http://example.com/cv/leozz_andre.pdf",
+    "websiteUrl": "http://leozzandre.dev"
+}

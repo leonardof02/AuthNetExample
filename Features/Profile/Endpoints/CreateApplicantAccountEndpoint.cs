@@ -1,35 +1,28 @@
-using System.Security.Claims;
+using Features.Profile.Models.Requests;
+using Features.Profile.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 
 namespace AuthNetExample.Features.Profile.Endpoints;
-
-public record ApplicantProfileRequest(
-    string FullName,
-    string ProfileTitle,
-    string Bio,
-    string CvUrl,
-    string WebsiteUrl,
-    string ContactPhone,
-    string ContactEmail
-);
 
 public static class CreateApplicantAccount
 {
     public static void AddCreateApplicantAccountEndpoint(this WebApplication app)
     {
         app.MapPost("/profile/applicant", async (
-            ApplicantProfile profile,
-            ApplicationDbContext dbContext
+            CreateApplicantProfileRequest request,
+            ApplicantAccountService applicantAccountService
         ) =>
         {
-            dbContext.ApplicantProfiles.Add(profile);
-            await dbContext.SaveChangesAsync();
-
+            var profile =  await applicantAccountService.CreateApplicantProfileAsync(request);
             return Results.Created($"/profile/applicant/{profile.Id}", profile);
         })
+        .AddEndpointFilter<ValidationFilter<CreateApplicantProfileRequest>>()
         .RequireAuthorization(new AuthorizeAttribute
         {
-            Roles = "applicant"
+            AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme,
+            Roles = "applicant",
+            Policy = "FirstTimeUsingTheApp"
         });
     }
 }

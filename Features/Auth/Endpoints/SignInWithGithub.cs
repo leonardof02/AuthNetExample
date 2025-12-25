@@ -24,11 +24,9 @@ public static class SignInWithGithub
             if (email == null || nameIdentifier == null)
                 return Results.BadRequest("Email or NameIdentifier not provided by GitHub.");
 
-            var result = await authService.SignInWithGithubAsync(email, nameIdentifier);
+            var registerResponse = await authService.SignInWithGithubAsync(email, nameIdentifier);
 
-            return result.IsSuccess
-                ? Results.Ok("/main")
-                : Results.Unauthorized();
+            return Results.Ok(registerResponse);
         })
         .RequireAuthorization(
             new AuthorizeAttribute

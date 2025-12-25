@@ -8,8 +8,7 @@ public static class RefreshTokenEndpoint
         app.MapPost("/auth/refresh", async (RefreshTokenRequest request, AuthService authService) =>
         {
             var result = await authService.RefreshTokenAsync(request.RefreshToken);
-            if (!result.IsSuccess) return Results.BadRequest(result.Error);
-            return TypedResults.Ok(result.Value);
+            return Results.Ok(result);
         })
         .AddEndpointFilter<ValidationFilter<RefreshTokenRequest>>()
         .AllowAnonymous();

@@ -8,8 +8,7 @@ public static class LoginUser
         app.MapPost("/auth/login", async (LoginRequest request, AuthService authService) =>
         {
             var result = await authService.LoginAsync(request);
-            if (!result.IsSuccess) return Results.Unauthorized();
-            return TypedResults.Ok(result.Value);
+            return Results.Ok(result);
         })
         .AddEndpointFilter<ValidationFilter<LoginRequest>>()
         .AllowAnonymous();

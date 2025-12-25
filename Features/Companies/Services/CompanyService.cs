@@ -58,4 +58,18 @@ public class CompanyService
             .Where(c => c.RecruiterId == recruiterId)
             .ToListAsync();
     }
+
+    public async Task<bool> DeleteCompanyAsync(int companyId)
+    {
+        var company = await _dbContext.Companies.FindAsync(companyId);
+        if (company == null)
+        {
+            return false;
+        }
+
+        _dbContext.Companies.Remove(company);
+        await _dbContext.SaveChangesAsync();
+
+        return true;
+    }
 }

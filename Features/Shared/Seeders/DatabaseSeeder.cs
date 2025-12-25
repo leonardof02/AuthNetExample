@@ -1,16 +1,17 @@
 using Microsoft.AspNetCore.Identity;
 using Features.JobPosting.Models;
+using Features.Shared.Persistence;
 
 namespace AuthNetExample.Features.Shared.Seeders;
 
 public class DatabaseSeeder
 {
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ApplicationDbContext _dbContext;
 
     public DatabaseSeeder(
-        UserManager<IdentityUser> userManager, 
+        UserManager<ApplicationUser> userManager, 
         RoleManager<IdentityRole> roleManager,
         ApplicationDbContext dbContext)
     {
@@ -28,7 +29,7 @@ public class DatabaseSeeder
 
     private async Task SeedRolesAsync()
     {
-        var roles = new[] { "recruiter", "user" };
+        var roles = new[] { "recruiter", "applicant" };
 
         foreach (var roleName in roles)
         {
@@ -66,7 +67,7 @@ public class DatabaseSeeder
             var user = await _userManager.FindByEmailAsync(email);
             if (user == null)
             {
-                var newUser = new IdentityUser
+                var newUser = new ApplicationUser
                 {
                     UserName = email,
                     Email = email,
