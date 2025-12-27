@@ -7,7 +7,7 @@ public static class GetJobOfferById
 {
     public static void AddGetJobOfferByIdEndpoint(this WebApplication app)
     {
-        app.MapGet("/api/joboffers/{id}", async (int id, [FromServices] JobPostingService jobPostingService) =>
+        app.MapGet("/joboffers/{id}", async (int id, [FromServices] JobPostingService jobPostingService) =>
         {
             var jobOffer = await jobPostingService.GetJobOfferByIdAsync(id);
             if (jobOffer == null) return Results.NotFound();

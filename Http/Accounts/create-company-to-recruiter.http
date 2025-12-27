@@ -1,0 +1,10 @@
+@host = http://localhost:5122
+@recruiter_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1YjZlOTZjMy01NDZlLTQwODctODE5Zi0yNDg1N2Q5ZDRkZjEiLCJlbWFpbCI6ImVtYWlsZXhhbXBsZUBtYWlsLmNvbSIsInVuaXF1ZV9uYW1lIjoicmFuZG9tdXNlcjQiLCJpc19vbmJvYXJkaW5nX2NvbXBsZXRlZCI6IlRydWUiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJyZWNydWl0ZXIiLCJleHAiOjE3NjY4NTk5MDUsImlzcyI6IlRoaXNBcHAiLCJhdWQiOiJUaGlzQXBwVXNlcnMifQ.ANPD2hfObEToQWHaI2d56ttIP_Q2DODZ_SiqkrAKxw0
+
+POST {{host}}/profile/recruiter/companies
+Content-Type: application/json
+Authorization: Bearer {{recruiter_token}}
+
+{
+    "name": "Yarey Tech"
+}

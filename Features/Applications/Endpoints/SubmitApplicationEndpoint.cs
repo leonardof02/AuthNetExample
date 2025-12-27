@@ -1,5 +1,7 @@
 using AuthNetExample.Features.Applications.Models.Requests;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AuthNetExample.Features.Applications.Endpoints;
 
@@ -7,13 +9,12 @@ public static class SubmitApplicationEndpoint
 {
     public static void AddSubmitApplicationEndpoint(this WebApplication app)
     {
-        app.MapPost("/api/applications", async (
-            SubmitApplicationRequest request,
-            ApplicationService applicationService) =>
+        app.MapPost("/joboffers/{jobOfferId}/applications", async (
+            int jobOfferId,
+            [FromServices] ApplicationService applicationService) =>
         {
-            var application = await applicationService.SubmitApplicationAsync(request.JobOfferId);
-            
-            return Results.Created($"/api/applications/{application.Id}", new
+            var application = await applicationService.SubmitApplicationAsync(jobOfferId);
+            return Results.Created($"/joboffers/{jobOfferId}/applications/{application.Id}", new
             {
                 application.Id,
                 application.JobOfferId,
@@ -25,11 +26,9 @@ public static class SubmitApplicationEndpoint
         .RequireAuthorization(
             new AuthorizeAttribute
             {
-                Roles = "applicant"
+                Roles = AppRoles.Applicant,
+                AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme
             }
-        )
-        .WithName("SubmitApplication")
-        .WithTags("Applications")
-        .WithOpenApi();
+        );
     }
 }

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Features.JobPosting.Models;
 using Features.JobPosting.Models.GetJobOffersParams;
 using Features.JobPosting.Models.PostJobOfferRequest;
@@ -8,14 +9,19 @@ namespace Features.JobPosting.Services;
 public class JobPostingService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public JobPostingService(ApplicationDbContext dbContext)
+    public JobPostingService(ApplicationDbContext dbContext, IHttpContextAccessor httpContextAccessor)
     {
         _dbContext = dbContext;
+        _httpContextAccessor = httpContextAccessor;
     }
 
-    public async Task<JobOffer> PostJobOfferAsync(PostJobOfferRequest request, string employerId)
+    public async Task<JobOffer> PostJobOfferAsync(PostJobOfferRequest request)
     {
+        var employerId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? throw new Exception("User is not authenticated.");
+
         var jobOffer = new JobOffer(
             request.Title,
             request.Description,
@@ -75,14 +81,17 @@ public class JobPostingService
         return new PaginatedResponse<JobOffer>(items, totalCount, pageSize, pageNumber, totalPages);
     }
 
-    public async Task<JobOffer?> UpdateJobOfferAsync(int id, UpdateJobOfferRequest request)
+    public async Task<JobOffer> UpdateJobOfferAsync(int id, UpdateJobOfferRequest request)
     {
+        var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? throw new Exception("User is not authenticated.");
+
         var jobOffer = await _dbContext.JobOffers.FindAsync(id);
-        
-        if (jobOffer == null)
-        {
-            return null;
-        }
+
+        if (jobOffer == null) throw new Exception("Job offer not found.");
+
+        if (jobOffer.EmployerId != userId)
+            throw new Exception("Unauthorized to update this job offer.");
 
         jobOffer.Title = request.Title;
         jobOffer.Description = request.Description;
@@ -97,11 +106,14 @@ public class JobPostingService
     public async Task<int?> DeleteJobOfferAsync(int id)
     {
         var jobOffer = await _dbContext.JobOffers.FindAsync(id);
-        
-        if (jobOffer == null)
-        {
-            return null;
-        }
+
+        var userId = _httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? throw new Exception("User is not authenticated.");
+
+        if (jobOffer == null) throw new Exception("Job offer not found.");
+
+        if (jobOffer.EmployerId != userId)
+            throw new Exception("Unauthorized to update this job offer.");
 
         _dbContext.JobOffers.Remove(jobOffer);
         await _dbContext.SaveChangesAsync();

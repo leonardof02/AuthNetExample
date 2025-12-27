@@ -1,7 +1,10 @@
 
 
+using System.IdentityModel.Tokens.Jwt;
 using AuthNetExample.Features.Applications.Endpoints;
 using AuthNetExample.Features.Auth.Services;
+using AuthNetExample.Features.Notifications.Services;
+using AuthNetExample.Features.Notifications.Workers;
 using AuthNetExample.Features.Profile.Endpoints;
 using AuthNetExample.Features.Profile.Services;
 using AuthNetExample.Features.Shared.Seeders;
@@ -14,8 +17,12 @@ using Features.Profile.Services;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Namespace.Features.Shared.Api.ExceptionHandlers;
 using Scalar.AspNetCore;
+using Telegram.Bot;
+
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -34,7 +41,14 @@ builder.Services
     .AddOptions<JwtSettings>()
     .Bind(builder.Configuration.GetSection("JwtSettings"));
 
-builder.Services.AddDbContext<ApplicationDbContext>();
+builder.Services.AddOptions<TelegramConfig>()
+    .Bind(builder.Configuration.GetSection("Telegram"));
+
+builder.Services.AddDbContext<ApplicationDbContext>( options =>
+{
+    options.UseSqlite(builder.Configuration.GetSection("DatabaseSettings:ConnectionString").Value);
+});
+
 builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 builder.Services.AddIdentityServices();
 
@@ -57,6 +71,16 @@ builder.Services.AddAuthorization(options =>
     options.AddFirstTimeUsingTheAppPolicyService();
 });
 
+var botToken = builder.Configuration["Telegram:Token"] 
+               ?? throw new Exception("Telegram Token no configurado");
+
+builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken));
+builder.Services.AddScoped<TelegramBotService>();
+
+builder.Services.AddLogging();
+builder.Services.AddHostedService<TelegramBotWorker>();
+
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JobPostingService>();
 builder.Services.AddScoped<ApplicationService>();
@@ -64,6 +88,8 @@ builder.Services.AddScoped<ApplicantAccountService>();
 builder.Services.AddScoped<RecruiterAccountsService>();
 builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<CompanyService>();
+builder.Services.AddSingleton<MemoryCacheService>();
 
 builder.Services.AddHttpContextAccessor();
 
@@ -102,7 +128,6 @@ app.AddOpenGithubLoginPageEndpoint();
 
 // Application Endpoints
 app.AddSubmitApplicationEndpoint();
-app.AddGetApplicationsEndpoint();
 app.AddGetApplicationsByJobOfferEndpoint();
 app.AddUpdateApplicationStatusEndpoint();
 app.AddDeleteApplicationEndpoint();
@@ -112,6 +137,8 @@ app.AddCreateApplicantAccountEndpoint();
 app.AddCreateRecruiterAccountEndpoint();
 app.AddEditApplicantAccountEndpoint();
 app.AddEditRecruiterAccountEndpoint();
+app.AddCompanyToRecruiterEndpoint();
+app.UpdateCompanyEndpoint();
 
 if (app.Environment.IsDevelopment())
 {

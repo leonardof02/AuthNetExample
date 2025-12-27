@@ -1,6 +1,7 @@
+namespace Features.Companies.Models.Requests;
+
 public record UpdateCompanyRequest(
-    int Id,
-    string Name,
+    string? Name,
     string? Description,
     string? Email,
     string? PhoneNumber,

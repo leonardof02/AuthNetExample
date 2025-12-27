@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AuthNetExample.Features.Applications.Endpoints;
@@ -22,9 +24,12 @@ public static class GetApplicationsByJobOfferEndpoint
 
             return Results.Ok(applications);
         })
-        .RequireAuthorization()
-        .WithName("GetApplicationsByJobOffer")
-        .WithTags("Applications")
-        .WithOpenApi();
+        .RequireAuthorization(
+            new AuthorizeAttribute
+            {
+                Roles = AppRoles.Recruiter,
+                AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme
+            }
+        );
     }
 }

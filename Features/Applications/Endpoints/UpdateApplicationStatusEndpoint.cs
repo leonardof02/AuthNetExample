@@ -1,4 +1,6 @@
 using AuthNetExample.Features.Applications.Models.Requests;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AuthNetExample.Features.Applications.Endpoints;
@@ -7,7 +9,8 @@ public static class UpdateApplicationStatusEndpoint
 {
     public static void AddUpdateApplicationStatusEndpoint(this WebApplication app)
     {
-        app.MapPut("/api/applications/{id}/status", async (
+        app.MapPut("/joboffers/{jobOfferId}/applications/{id}/status", async (
+            int jobOfferId,
             int id,
             UpdateApplicationStatusRequest request,
             [FromServices] ApplicationService applicationService) =>
@@ -17,7 +20,7 @@ public static class UpdateApplicationStatusEndpoint
                 return Results.BadRequest(new { message = "Invalid application status" });
             }
 
-            var updatedApplication = await applicationService.UpdateApplicationStatusAsync(id, status);
+            var updatedApplication = await applicationService.UpdateApplicationStatusAsync(id, jobOfferId, status);
 
             if (updatedApplication == null)
             {
@@ -26,6 +29,12 @@ public static class UpdateApplicationStatusEndpoint
 
             return Results.Ok(updatedApplication);
         })
-        .RequireAuthorization();
+        .RequireAuthorization(
+            new AuthorizeAttribute
+            {
+                Roles = AppRoles.Recruiter,
+                AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme
+            }
+        );
     }
 }

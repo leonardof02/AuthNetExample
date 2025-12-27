@@ -1,30 +1,36 @@
-using Microsoft.AspNetCore.Identity;
 using Features.JobPosting.Models;
 using Features.Shared.Persistence;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace AuthNetExample.Features.Shared.Seeders;
 
 public class DatabaseSeeder
 {
-    private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationDbContext _dbContext;
+    private const string DefaultPassword = "ChangeMe123!";
+
+    private record SeedUser(string Email, string FullName, string Role);
+
 
     public DatabaseSeeder(
-        UserManager<ApplicationUser> userManager, 
         RoleManager<IdentityRole> roleManager,
+        UserManager<ApplicationUser> userManager,
         ApplicationDbContext dbContext)
     {
-        _userManager = userManager;
         _roleManager = roleManager;
+        _userManager = userManager;
         _dbContext = dbContext;
     }
 
     public async Task SeedAsync()
     {
         await SeedRolesAsync();
-        await SeedUsersAsync();
-        await SeedJobOffersAsync();
+        var recruiters = await SeedRecruitersAsync();
+        var applicants = await SeedApplicantsAsync();
+        var jobOffers = await SeedJobOffersAsync(recruiters);
     }
 
     private async Task SeedRolesAsync()
@@ -48,176 +54,222 @@ public class DatabaseSeeder
         }
     }
 
-    private async Task SeedUsersAsync()
+    private async Task<List<ApplicationUser>> SeedRecruitersAsync()
     {
-        var testUsers = new List<(string Email, string Password)>
+        var recruiterSeeds = new[]
         {
-            ("employer@example.com", "Employer@123"),
-            ("recruiter@example.com", "Recruiter@123"),
-            ("john.doe@example.com", "John@123456"),
-            ("jane.smith@example.com", "Jane@123456"),
-            ("carlos.garcia@example.com", "Carlos@123456"),
-            ("maria.lopez@example.com", "Maria@123456"),
-            ("pedro.martinez@example.com", "Pedro@123456"),
-            ("ana.fernandez@example.com", "Ana@123456")
+            new SeedUser("ana.recruiter@example.com", "Ana Martinez", "recruiter"),
+            new SeedUser("carlos.recruiter@example.com", "Carlos Gomez", "recruiter")
         };
 
-        foreach (var (email, password) in testUsers)
-        {
-            var user = await _userManager.FindByEmailAsync(email);
-            if (user == null)
-            {
-                var newUser = new ApplicationUser
-                {
-                    UserName = email,
-                    Email = email,
-                    EmailConfirmed = true
-                };
+        var recruiters = new List<ApplicationUser>();
 
-                var result = await _userManager.CreateAsync(newUser, password);
-                if (!result.Succeeded)
-                {
-                    Console.WriteLine($"Error creating user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
-                }
-                else
-                {
-                    Console.WriteLine($"✓ User created: {email}");
-                }
-            }
+        foreach (var seed in recruiterSeeds)
+        {
+            var user = await EnsureUserAsync(seed);
+            await EnsureRecruiterProfileAsync(user, seed.FullName);
+            recruiters.Add(user);
         }
+
+        return recruiters;
     }
 
-    private async Task SeedJobOffersAsync()
+    private async Task<List<ApplicationUser>> SeedApplicantsAsync()
     {
-        if (_dbContext.JobOffers.Any())
+        var applicantSeeds = new[]
         {
-            Console.WriteLine("Job offers already exist, skipping seeding.");
-            return;
-        }
-
-        var employerId = (await _userManager.FindByEmailAsync("employer@example.com"))?.Id;
-        var recruiterId = (await _userManager.FindByEmailAsync("recruiter@example.com"))?.Id;
-
-        if (string.IsNullOrEmpty(employerId) || string.IsNullOrEmpty(recruiterId))
-        {
-            Console.WriteLine("Employer or Recruiter user not found. Skipping job offers seeding.");
-            return;
-        }
-
-        var jobOffers = new List<JobOffer>
-        {
-            // Ofertas del Employer
-            new JobOffer(
-                "Senior Full Stack Developer",
-                "We are looking for an experienced full stack developer with expertise in C# and React. You will be responsible for developing and maintaining our web applications. Must have 5+ years of experience.",
-                "Madrid, Spain",
-                45000,
-                60000,
-                employerId
-            ),
-            new JobOffer(
-                "Backend Engineer - C#/.NET",
-                "Join our growing backend team! We're seeking a talented backend engineer to work with our microservices architecture. Experience with Docker, Kubernetes, and Azure is a plus.",
-                "Barcelona, Spain",
-                40000,
-                55000,
-                employerId
-            ),
-            new JobOffer(
-                "DevOps Engineer",
-                "Help us build and maintain our cloud infrastructure. We use Azure, Docker, and Kubernetes. You'll work on CI/CD pipelines and infrastructure automation.",
-                "Remote",
-                38000,
-                52000,
-                employerId
-            ),
-            new JobOffer(
-                "Frontend Developer - React",
-                "Create beautiful and responsive user interfaces using React and TypeScript. Work with our design team to bring mockups to life. Must have 3+ years of React experience.",
-                "Valencia, Spain",
-                35000,
-                48000,
-                employerId
-            ),
-            new JobOffer(
-                "Database Administrator",
-                "Manage and optimize our SQL Server and PostgreSQL databases. Monitor performance, handle backups, and implement security measures. Requires expertise in database administration.",
-                "Madrid, Spain",
-                42000,
-                56000,
-                employerId
-            ),
-
-            // Ofertas del Recruiter
-            new JobOffer(
-                "Mobile Developer - iOS/Android",
-                "Develop cross-platform mobile applications using Flutter or React Native. Join a startup that's disrupting the mobile industry. Experience with native development is a plus.",
-                "Málaga, Spain",
-                33000,
-                48000,
-                recruiterId
-            ),
-            new JobOffer(
-                "QA Engineer - Automation",
-                "Build and maintain automated test suites for our web and mobile applications. Experience with Selenium, Cypress, or similar frameworks required. Knowledge of Java or Python is preferred.",
-                "Remote",
-                28000,
-                40000,
-                recruiterId
-            ),
-            new JobOffer(
-                "Solutions Architect",
-                "Design cloud solutions for enterprise clients using Azure or AWS. Work with stakeholders to understand requirements and translate them into technical solutions. 8+ years experience required.",
-                "Madrid, Spain",
-                55000,
-                75000,
-                recruiterId
-            ),
-            new JobOffer(
-                "Security Engineer",
-                "Lead our security initiatives and implement best practices. Conduct security audits and penetration testing. CISSP or similar certification preferred.",
-                "Barcelona, Spain",
-                50000,
-                68000,
-                recruiterId
-            ),
-            new JobOffer(
-                "Machine Learning Engineer",
-                "Develop and deploy ML models for our data platform. Experience with Python, TensorFlow, and PyTorch. Knowledge of MLOps and model deployment is essential.",
-                "Madrid, Spain",
-                48000,
-                65000,
-                recruiterId
-            ),
-            new JobOffer(
-                "Data Engineer",
-                "Build data pipelines and ETL processes using Spark or similar tools. Design data warehouses and implement analytics solutions. SQL and Python expertise required.",
-                "Remote",
-                42000,
-                58000,
-                recruiterId
-            ),
-            new JobOffer(
-                "Cloud Architect - AWS",
-                "Design and implement scalable cloud solutions on AWS. Work with teams to migrate legacy systems to the cloud. AWS Solutions Architect certification required.",
-                "Bilbao, Spain",
-                52000,
-                70000,
-                recruiterId
-            ),
-            new JobOffer(
-                "Technical Lead",
-                "Lead a team of developers and drive technical excellence. Mentor junior developers and make architectural decisions. 6+ years of development experience required.",
-                "Madrid, Spain",
-                48000,
-                62000,
-                recruiterId
-            )
+            new SeedUser("laura.applicant@example.com", "Laura Rivera", "applicant"),
+            new SeedUser("miguel.applicant@example.com", "Miguel Santos", "applicant")
         };
 
-        await _dbContext.JobOffers.AddRangeAsync(jobOffers);
-        await _dbContext.SaveChangesAsync();
+        var applicants = new List<ApplicationUser>();
 
-        Console.WriteLine($"✓ {jobOffers.Count} job offers created successfully!");
+        foreach (var seed in applicantSeeds)
+        {
+            var user = await EnsureUserAsync(seed);
+            await EnsureApplicantProfileAsync(user, seed.FullName);
+            applicants.Add(user);
+        }
+
+        return applicants;
+    }
+
+    private async Task<List<JobOffer>> SeedJobOffersAsync(IEnumerable<ApplicationUser> recruiters)
+    {
+        var recruiterByEmail = recruiters
+            .Where(r => !string.IsNullOrWhiteSpace(r.Email))
+            .ToDictionary(r => r.Email!, r => r);
+
+        var seeds = new[]
+        {
+            new { Title = "Backend Developer", Description = "API y servicios en .NET", Location = "Remoto", MinSalary = 60000, MaxSalary = 85000, RecruiterEmail = "ana.recruiter@example.com" },
+            new { Title = "Frontend Engineer", Description = "UI con React y diseno accesible", Location = "Madrid", MinSalary = 50000, MaxSalary = 75000, RecruiterEmail = "ana.recruiter@example.com" },
+            new { Title = "Data Analyst", Description = "Dashboarding y storytelling con datos", Location = "Barcelona", MinSalary = 45000, MaxSalary = 65000, RecruiterEmail = "carlos.recruiter@example.com" }
+        };
+
+        var created = new List<JobOffer>();
+
+        foreach (var seed in seeds)
+        {
+            if (!recruiterByEmail.TryGetValue(seed.RecruiterEmail, out var recruiter))
+            {
+                continue;
+            }
+
+            var exists = await _dbContext.JobOffers
+                .AnyAsync(j => j.Title == seed.Title && j.EmployerId == recruiter.Id);
+
+            if (exists)
+            {
+                continue;
+            }
+
+            var jobOffer = new JobOffer(
+                seed.Title,
+                seed.Description,
+                seed.Location,
+                seed.MinSalary,
+                seed.MaxSalary,
+                recruiter.Id);
+
+            _dbContext.JobOffers.Add(jobOffer);
+            created.Add(jobOffer);
+        }
+
+        if (created.Count > 0)
+        {
+            await _dbContext.SaveChangesAsync();
+            Console.WriteLine($"✓ Job offers created: {created.Count}");
+        }
+
+        var targetTitles = seeds.Select(s => s.Title).ToList();
+        return await _dbContext.JobOffers.Where(j => targetTitles.Contains(j.Title)).ToListAsync();
+    }
+
+    // private async Task SeedJobApplicationsAsync(IEnumerable<JobOffer> jobOffers, IEnumerable<ApplicationUser> applicants)
+    // {
+    //     var jobOffersByTitle = jobOffers.ToDictionary(j => j.Title, j => j);
+    //     var applicantsByEmail = applicants
+    //         .Where(a => !string.IsNullOrWhiteSpace(a.Email))
+    //         .ToDictionary(a => a.Email!, a => a);
+
+    //     var seeds = new[]
+    //     {
+    //         new { JobTitle = "Backend Developer", ApplicantEmail = "laura.applicant@example.com", AppliedAt = DateTime.UtcNow.AddDays(-4) },
+    //         new { JobTitle = "Frontend Engineer", ApplicantEmail = "miguel.applicant@example.com", AppliedAt = DateTime.UtcNow.AddDays(-3) },
+    //         new { JobTitle = "Data Analyst", ApplicantEmail = "laura.applicant@example.com", AppliedAt = DateTime.UtcNow.AddDays(-2) }
+    //     };
+
+    //     var created = 0;
+
+    //     foreach (var seed in seeds)
+    //     {
+    //         if (!jobOffersByTitle.TryGetValue(seed.JobTitle, out var jobOffer))
+    //         {
+    //             continue;
+    //         }
+
+    //         if (!applicantsByEmail.TryGetValue(seed.ApplicantEmail, out var applicant))
+    //         {
+    //             continue;
+    //         }
+
+    //         var exists = await _dbContext.JobApplications
+    //             .AnyAsync(a => a.JobOfferId == jobOffer.Id && a.ApplicantId == applicant.Id);
+
+    //         if (exists)
+    //         {
+    //             continue;
+    //         }
+
+    //         _dbContext.JobApplications.Add(new JobApplication
+    //         {
+    //             JobOfferId = jobOffer.Id,
+    //             ApplicantId = applicant.Id,
+    //             AppliedAt = seed.AppliedAt,
+    //             Status = ApplicationStatus.Pending
+    //         });
+
+    //         created++;
+    //     }
+
+    //     if (created > 0)
+    //     {
+    //         await _dbContext.SaveChangesAsync();
+    //         Console.WriteLine($"✓ Job applications created: {created}");
+    //     }
+    // }
+
+    private async Task<ApplicationUser> EnsureUserAsync(SeedUser seed)
+    {
+        var existing = await _userManager.FindByEmailAsync(seed.Email);
+        if (existing != null)
+        {
+            return existing;
+        }
+
+        var user = new ApplicationUser
+        {
+            Email = seed.Email,
+            UserName = seed.Email,
+            EmailConfirmed = true,
+            IsOnboardingCompleted = true
+        };
+
+        var createResult = await _userManager.CreateAsync(user, DefaultPassword);
+
+        if (!createResult.Succeeded)
+        {
+            var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+            throw new InvalidOperationException($"Could not seed user {seed.Email}: {errors}");
+        }
+
+        var addToRoleResult = await _userManager.AddToRoleAsync(user, seed.Role);
+
+        if (!addToRoleResult.Succeeded)
+        {
+            var errors = string.Join(", ", addToRoleResult.Errors.Select(e => e.Description));
+            throw new InvalidOperationException($"Could not assign role {seed.Role} to {seed.Email}: {errors}");
+        }
+
+        Console.WriteLine($"✓ User created: {seed.Email} (role: {seed.Role})");
+
+        return user;
+    }
+
+    private async Task EnsureRecruiterProfileAsync(ApplicationUser user, string fullName)
+    {
+        var exists = await _dbContext.RecruiterProfiles.AnyAsync(p => p.UserId == user.Id);
+        if (exists)
+        {
+            return;
+        }
+
+        _dbContext.RecruiterProfiles.Add(new RecruiterProfile
+        {
+            UserId = user.Id,
+            FullName = fullName,
+            ContactEmail = user.Email ?? string.Empty
+        });
+
+        await _dbContext.SaveChangesAsync();
+    }
+
+    private async Task EnsureApplicantProfileAsync(ApplicationUser user, string fullName)
+    {
+        var exists = await _dbContext.ApplicantProfiles.AnyAsync(p => p.UserId == user.Id);
+        if (exists)
+        {
+            return;
+        }
+
+        _dbContext.ApplicantProfiles.Add(new ApplicantProfile
+        {
+            UserId = user.Id,
+            FullName = fullName,
+            ContactEmail = user.Email ?? string.Empty
+        });
+
+        await _dbContext.SaveChangesAsync();
     }
 }

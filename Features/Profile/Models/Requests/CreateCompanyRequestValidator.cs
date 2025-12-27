@@ -1,14 +1,11 @@
 using FluentValidation;
 
-public class UpdateCompanyRequestValidator : AbstractValidator<UpdateCompanyRequest> 
+namespace Features.Companies.Models.Requests;
+
+public class CreateCompanyRequestValidator : AbstractValidator<CreateCompanyRequest> 
 {
-    public UpdateCompanyRequestValidator()
+    public CreateCompanyRequestValidator()
     {
-
-        RuleFor(x => x.Id)
-            .NotEmpty()
-            .WithMessage("Company ID must be a positive integer.");
-
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Company name is required.")
             .MaximumLength(100).WithMessage("Company name must not exceed 100 characters.");

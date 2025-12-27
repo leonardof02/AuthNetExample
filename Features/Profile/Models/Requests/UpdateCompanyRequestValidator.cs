@@ -1,12 +1,16 @@
+using Features.Companies.Models.Requests;
 using FluentValidation;
 
-public class CreateCompanyRequestValidator : AbstractValidator<CreateCompanyRequest> 
+namespace Features.Companies.Models.Requests;
+
+public class UpdateCompanyRequestValidator : AbstractValidator<UpdateCompanyRequest> 
 {
-    public CreateCompanyRequestValidator()
+    public UpdateCompanyRequestValidator()
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Company name is required.")
-            .MaximumLength(100).WithMessage("Company name must not exceed 100 characters.");
+            .MaximumLength(100).WithMessage("Company name must not exceed 100 characters.")
+            .When(x => !string.IsNullOrEmpty(x.Name));
 
         RuleFor(x => x.Description)
             .MaximumLength(500).WithMessage("Description must not exceed 500 characters.")

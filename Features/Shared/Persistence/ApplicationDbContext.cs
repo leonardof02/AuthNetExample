@@ -1,4 +1,5 @@
 using AuthNetExample.Features.Auth.Models;
+using AuthNetExample.Features.Notifications.Models.Persistence;
 using Features.JobPosting.Models;
 using Features.Shared.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -14,17 +15,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<ApplicantProfile> ApplicantProfiles => Set<ApplicantProfile>();
     public DbSet<RecruiterProfile> RecruiterProfiles => Set<RecruiterProfile>();
+    public DbSet<TelegramSuscription> TelegramSuscriptions => Set<TelegramSuscription>();
+
 
     private readonly DatabaseSettings _options;
 
     public ApplicationDbContext(IOptions<DatabaseSettings> options)
     {
         _options = options.Value;
-    }
-    
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        optionsBuilder.UseSqlite(_options.ConnectionString);
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -116,6 +114,22 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                   .WithOne()
                   .HasForeignKey<RecruiterProfile>(e => e.UserId)
                   .IsRequired();
+        });
+
+        builder.Entity<TelegramSuscription>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.ChatId });
+
+            entity.Property(e => e.UserId).IsRequired();
+            entity.Property(e => e.ChatId).IsRequired();
+
+            entity.HasOne<ApplicationUser>()
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .IsRequired()
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.ChatId).IsUnique();
         });
     }
 }

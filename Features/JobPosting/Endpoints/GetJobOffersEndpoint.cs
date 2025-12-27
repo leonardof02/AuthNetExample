@@ -7,7 +7,7 @@ public static class GetJobOffersEndpoint
 {
     public static void AddGetJobOffersEndpoint(this WebApplication app)
     {
-        app.MapGet("/api/joboffers", async ([AsParameters] GetJobOffersParams queryParams, JobPostingService jobPostingService) =>
+        app.MapGet("/joboffers", async ([AsParameters] GetJobOffersParams queryParams, JobPostingService jobPostingService) =>
         {
             var jobOffers = await jobPostingService.GetJobOffersAsync(queryParams);
             return TypedResults.Ok(jobOffers);
