@@ -1,15 +1,22 @@
 using System.Security.Claims;
+using AuthNetExample.Features.Notifications.Services;
 using Microsoft.EntityFrameworkCore;
 
 public class ApplicationService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly TelegramBotService _telegramBotService;
 
-    public ApplicationService(ApplicationDbContext dbContext, IHttpContextAccessor httpContextAccessor)
+    public ApplicationService(
+        ApplicationDbContext dbContext,
+        IHttpContextAccessor httpContextAccessor,
+        TelegramBotService telegramBotService
+    )
     {
         _dbContext = dbContext;
         _httpContextAccessor = httpContextAccessor;
+        _telegramBotService = telegramBotService;
     }
 
     public async Task<JobApplication> SubmitApplicationAsync(int jobOfferId)
@@ -37,6 +44,9 @@ public class ApplicationService
 
         _dbContext.JobApplications.Add(application);
         await _dbContext.SaveChangesAsync();
+
+        var recruiterId = jobOffer.EmployerId;
+        await _telegramBotService.SendNotificationToUserAsync(recruiterId, $"New application received for your job offer '{jobOffer.Title}'.");
 
         return application;
     }
@@ -109,6 +119,9 @@ public class ApplicationService
 
         application.Status = newStatus;
         await _dbContext.SaveChangesAsync();
+
+        var applicantId = application.ApplicantId;
+        await _telegramBotService.SendNotificationToUserAsync(applicantId, $"Your application for the job offer '{jobOffer.Title}' has been updated to '{newStatus}'.");
 
         return application;
     }

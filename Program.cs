@@ -3,6 +3,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using AuthNetExample.Features.Applications.Endpoints;
 using AuthNetExample.Features.Auth.Services;
+using AuthNetExample.Features.Notifications.Endpoints;
 using AuthNetExample.Features.Notifications.Services;
 using AuthNetExample.Features.Notifications.Workers;
 using AuthNetExample.Features.Profile.Endpoints;
@@ -71,16 +72,17 @@ builder.Services.AddAuthorization(options =>
     options.AddFirstTimeUsingTheAppPolicyService();
 });
 
-var botToken = builder.Configuration["Telegram:Token"] 
+var botToken = builder.Configuration["Telegram:BotToken"] 
                ?? throw new Exception("Telegram Token no configurado");
 
 builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken));
 builder.Services.AddScoped<TelegramBotService>();
 
 builder.Services.AddLogging();
-builder.Services.AddHostedService<TelegramBotWorker>();
+builder.Services.AddHostedService<TelegramNotificationBackgroundService>();
 
-builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddDistributedMemoryCache();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JobPostingService>();
 builder.Services.AddScoped<ApplicationService>();
@@ -90,8 +92,8 @@ builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<CompanyService>();
 builder.Services.AddSingleton<MemoryCacheService>();
+builder.Services.AddHostedService<TelegramNotificationBackgroundService>();
 
-builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddOpenApi();
 
@@ -139,6 +141,9 @@ app.AddEditApplicantAccountEndpoint();
 app.AddEditRecruiterAccountEndpoint();
 app.AddCompanyToRecruiterEndpoint();
 app.UpdateCompanyEndpoint();
+
+// Notifications
+app.AddGetTelegramLinkEndpoint();
 
 if (app.Environment.IsDevelopment())
 {

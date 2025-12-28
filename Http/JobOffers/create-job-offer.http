@@ -1,0 +1,14 @@
+@recruiter_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZWQ1YTdjNC1kNGNlLTQ2NDYtYWFlYS1mNmQyMmYwZWY4NTYiLCJlbWFpbCI6ImVtYWlsZXhhbXBsZUBtYWlsLmNvbSIsInVuaXF1ZV9uYW1lIjoicmFuZG9tdXNlcjQiLCJpc19vbmJvYXJkaW5nX2NvbXBsZXRlZCI6IkZhbHNlIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoicmVjcnVpdGVyIiwiZXhwIjoxNzY2OTMyMTg2LCJpc3MiOiJUaGlzQXBwIiwiYXVkIjoiVGhpc0FwcFVzZXJzIn0.Wxn_Jr3jyzPfQRB6YJCsjvGgYXfM-QoaU2OLetTkFi4
+@host = http://localhost:5122
+
+POST {{host}}/joboffers
+Content-Type: application/json
+Authorization: Bearer {{recruiter_token}}
+
+{
+    "title": ".NET Developer",
+    "description": "Looking for a skilled software developer with experience in C# and .NET Core.",
+    "location": "New York, NY",
+    "minSalary": 80000,
+    "maxSalary": 120000
+}

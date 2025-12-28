@@ -2,10 +2,8 @@ using AuthNetExample.Features.Auth.Models;
 using AuthNetExample.Features.Notifications.Models.Persistence;
 using Features.JobPosting.Models;
 using Features.Shared.Persistence;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
@@ -17,12 +15,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<RecruiterProfile> RecruiterProfiles => Set<RecruiterProfile>();
     public DbSet<TelegramSuscription> TelegramSuscriptions => Set<TelegramSuscription>();
 
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
-    private readonly DatabaseSettings _options;
 
-    public ApplicationDbContext(IOptions<DatabaseSettings> options)
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+
     {
-        _options = options.Value;
+        base.OnConfiguring(optionsBuilder);
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -55,6 +54,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.PostedDate).IsRequired();
             entity.Property(e => e.MinSalary).IsRequired();
             entity.Property(e => e.MaxSalary).IsRequired();
+
+            entity.HasOne<ApplicationUser>()
+                  .WithMany()
+                  .HasForeignKey(e => e.EmployerId)
+                  .IsRequired();
         });
 
         builder.Entity<JobApplication>(entity =>
@@ -124,8 +128,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.ChatId).IsRequired();
 
             entity.HasOne<ApplicationUser>()
-                  .WithMany()
-                  .HasForeignKey(e => e.UserId)
+                  .WithOne()
+                  .HasForeignKey<TelegramSuscription>(e => e.UserId)
                   .IsRequired()
                   .OnDelete(DeleteBehavior.Cascade);
 

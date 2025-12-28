@@ -6,16 +6,16 @@ using Telegram.Bot.Types.Enums;
 
 namespace AuthNetExample.Features.Notifications.Workers;
 
-public class TelegramBotWorker : BackgroundService
+public class TelegramNotificationBackgroundService : BackgroundService
 {
     private readonly ITelegramBotClient _botClient;
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<TelegramBotWorker> _logger;
+    private readonly ILogger<TelegramNotificationBackgroundService> _logger;
 
-    public TelegramBotWorker(
+    public TelegramNotificationBackgroundService(
         ITelegramBotClient botClient, 
         IServiceProvider serviceProvider,
-        ILogger<TelegramBotWorker> logger)
+        ILogger<TelegramNotificationBackgroundService> logger)
     {
         _botClient = botClient;
         _serviceProvider = serviceProvider;
@@ -50,6 +50,7 @@ public class TelegramBotWorker : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error procesando update de Telegram");
+            await _botClient.SendMessage(update.Message!.Chat.Id, "Ocurrió un error al procesar tu solicitud.");
         }
     }
 

@@ -1,0 +1,10 @@
+@host = http://localhost:5122
+@recruiter_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3ZWQ1YTdjNC1kNGNlLTQ2NDYtYWFlYS1mNmQyMmYwZWY4NTYiLCJlbWFpbCI6ImVtYWlsZXhhbXBsZUBtYWlsLmNvbSIsInVuaXF1ZV9uYW1lIjoicmFuZG9tdXNlcjQiLCJpc19vbmJvYXJkaW5nX2NvbXBsZXRlZCI6IkZhbHNlIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoicmVjcnVpdGVyIiwiZXhwIjoxNzY2OTM2Njg2LCJpc3MiOiJUaGlzQXBwIiwiYXVkIjoiVGhpc0FwcFVzZXJzIn0.Zvl9jb73nMWmEzefXK6PEbYTHgNYU8Bg4x-_g6unPXI
+
+PUT {{host}}/joboffers/4/applications/4/status
+Authorization: Bearer {{recruiter_token}}
+Content-Type: application/json
+
+{
+    "status": "Pending"
+}

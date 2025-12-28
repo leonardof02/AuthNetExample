@@ -14,15 +14,13 @@ public class TelegramBotService
     private readonly TelegramConfig _config;
     private readonly MemoryCacheService _cache;
     private readonly ApplicationDbContext _dbContext;
-    private readonly HttpContextAccessor _httpContextAccessor;
 
 
     public TelegramBotService(
         ITelegramBotClient client,
         IOptions<TelegramConfig> config,
         MemoryCacheService cache,
-        ApplicationDbContext dbContext,
-        HttpContextAccessor httpContextAccessor
+        ApplicationDbContext dbContext
     )
     {
         _config = config.Value;
@@ -31,10 +29,8 @@ public class TelegramBotService
         _dbContext = dbContext;
     }
 
-    public async Task<string> GenerateSuscriptionToken()
+    public async Task<string> GenerateSuscriptionToken(string userId)
     {
-        var userId = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier)
-                ?? throw new Exception("User is not authenticated.");
         var token = Guid.NewGuid().ToString();
         await _cache.SetAsync(token, userId, TimeSpan.FromMinutes(20));
         return token;
@@ -42,6 +38,16 @@ public class TelegramBotService
 
     private async Task SuscribeUserAsync(long chatId, string token)
     {
+
+        var existentSuscription = await _dbContext.TelegramSuscriptions
+            .AnyAsync(s => s.ChatId == chatId);
+
+        if (existentSuscription)
+        {
+            await _client.SendMessage(chatId, "Ya estás suscrito a las notificaciones.");
+            return;
+        }
+
         var cachedUserId = await _cache.GetAsync<string>(token);
         if (cachedUserId is null)
         {
@@ -57,6 +63,7 @@ public class TelegramBotService
         _dbContext.TelegramSuscriptions.Add(suscription);
         await _cache.RemoveAsync(token);
         await _dbContext.SaveChangesAsync();
+        await _client.SendMessage(chatId, "Te has dado de alta en las notificaciones.");
     }
 
     private async Task UnsuscribeUserAsync(long chatId)
@@ -71,6 +78,16 @@ public class TelegramBotService
         }
     }
 
+    public async Task SendNotificationToUserAsync(string userId, string message)
+    {
+        var suscription = await _dbContext.TelegramSuscriptions
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        if (suscription != null)
+        {
+            await _client.SendMessage(suscription.ChatId, message);
+        }
+    }
 
     public async Task HandleUpdateAsync(Update update, CancellationToken ct)
     {
@@ -87,7 +104,6 @@ public class TelegramBotService
                 if (token != null)
                 {
                     await SuscribeUserAsync(chatId, token);
-                    await _client.SendMessage(chatId, "Te has dado de alta en las notificaciones.");
                 }
                 else
                 {
