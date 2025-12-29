@@ -84,3 +84,14 @@ app.db-shm
 app.db-wal
 authnetexample.db-shm
 authnetexample.db-wal
+
+# Azurite
+__azurite_db_blob__.*
+__azurite_db_queue__.*
+__azurite_db_table__.*
+__azurite_db_blob__
+__azurite_db_queue__
+__azurite_db_table__
+__azurite_db_blob_extent__.*
+
+__blobstorage__/

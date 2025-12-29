@@ -1,0 +1,14 @@
+@applicant_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwZDU3MzliZC0zYmM0LTRkOTYtODNiOS1mMGU5NjlmYzY1ZDUiLCJlbWFpbCI6ImFheGNjenhAbWFpbC5jb20iLCJ1bmlxdWVfbmFtZSI6ImFheGNjengiLCJpc19vbmJvYXJkaW5nX2NvbXBsZXRlZCI6IkZhbHNlIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiYXBwbGljYW50IiwiZXhwIjoxNzY3MDMyOTUyLCJpc3MiOiJUaGlzQXBwIiwiYXVkIjoiVGhpc0FwcFVzZXJzIn0.K4xUj7XowzLOi815oOWEVcemYYpn2jA0Ist15fLQNzo
+@host = http://localhost:5122
+
+POST {{host}}/profile/applicant/cv
+Authorization: Bearer {{applicant_token}}
+Content-Type: multipart/form-data; boundary=--Boundary12345
+
+----Boundary12345
+Content-Disposition: form-data; name="file"; filename="sample-cv.pdf"
+Content-Type: application/pdf
+
+< C:\Users\Leonardo\Desktop\cv-template.pdf
+
+----Boundary12345--

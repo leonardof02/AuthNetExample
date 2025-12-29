@@ -1,6 +1,6 @@
-
-
 using System.IdentityModel.Tokens.Jwt;
+using Amazon.Runtime;
+using Amazon.S3;
 using AuthNetExample.Features.Applications.Endpoints;
 using AuthNetExample.Features.Auth.Services;
 using AuthNetExample.Features.Notifications.Endpoints;
@@ -19,6 +19,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Azure;
 using Namespace.Features.Shared.Api.ExceptionHandlers;
 using Scalar.AspNetCore;
 using Telegram.Bot;
@@ -42,10 +43,59 @@ builder.Services
     .AddOptions<JwtSettings>()
     .Bind(builder.Configuration.GetSection("JwtSettings"));
 
+builder.Services
+    .AddOptions<S3Config>()
+    .Bind(builder.Configuration.GetSection("AWS"));
+
 builder.Services.AddOptions<TelegramConfig>()
     .Bind(builder.Configuration.GetSection("Telegram"));
 
-builder.Services.AddDbContext<ApplicationDbContext>( options =>
+builder.Services.AddSingleton<IAmazonS3>(sc =>
+{
+    var configuration = sc.GetRequiredService<IConfiguration>();
+    var awsConfiguration = configuration.GetSection("AWS").Get<S3Config>();
+    var region = Amazon.RegionEndpoint.GetBySystemName(awsConfiguration.Region);
+
+    if (awsConfiguration?.ServiceURL is null)
+    {
+        if (!string.IsNullOrEmpty(awsConfiguration?.AccessKey) && 
+            !string.IsNullOrEmpty(awsConfiguration?.SecretKey))
+        {
+            var credentials = new BasicAWSCredentials(
+                awsConfiguration.AccessKey, 
+                awsConfiguration.SecretKey
+            );
+            return new AmazonS3Client(credentials, region);
+        }
+        
+        return new AmazonS3Client(region);
+    }
+
+    var s3Config = new AmazonS3Config
+    {
+        AuthenticationRegion = region.SystemName,
+        ServiceURL = awsConfiguration.ServiceURL,
+        ForcePathStyle = awsConfiguration.ForcePathStyle,
+        UseArnRegion = awsConfiguration.UseArnRegion,
+        RegionEndpoint = region
+    };
+
+    if (!string.IsNullOrEmpty(awsConfiguration?.AccessKey) && 
+        !string.IsNullOrEmpty(awsConfiguration?.SecretKey))
+    {
+        var credentials = new BasicAWSCredentials(
+            secretKey: awsConfiguration.SecretKey,
+            accessKey: awsConfiguration.AccessKey,
+            accountId: "000000000000"
+        );
+        return new AmazonS3Client(credentials, s3Config);
+    }
+
+    return new AmazonS3Client(s3Config);
+});
+
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlite(builder.Configuration.GetSection("DatabaseSettings:ConnectionString").Value);
 });
@@ -72,7 +122,7 @@ builder.Services.AddAuthorization(options =>
     options.AddFirstTimeUsingTheAppPolicyService();
 });
 
-var botToken = builder.Configuration["Telegram:BotToken"] 
+var botToken = builder.Configuration["Telegram:BotToken"]
                ?? throw new Exception("Telegram Token no configurado");
 
 builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken));
@@ -93,9 +143,17 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<CompanyService>();
 builder.Services.AddSingleton<MemoryCacheService>();
 builder.Services.AddHostedService<TelegramNotificationBackgroundService>();
+builder.Services.AddScoped<CvStorageService>();
+
+builder.Services.AddAzureClients(clientBuilder =>
+{
+    clientBuilder.AddBlobServiceClient(builder.Configuration.GetSection("AzureStorage:ConnectionString").Value);
+});
 
 
 builder.Services.AddOpenApi();
+
+builder.Services.AddAntiforgery();
 
 var app = builder.Build();
 
@@ -112,6 +170,7 @@ app.UseAuthorization();
 
 // app.UseHttpsRedirection();
 
+app.UseAntiforgery();
 
 // Auth Endpoints
 app.AddLoginUserEndpoint();
@@ -144,6 +203,9 @@ app.UpdateCompanyEndpoint();
 
 // Notifications
 app.AddGetTelegramLinkEndpoint();
+
+// Cv Management
+app.MapUploadCvEndpoint();
 
 if (app.Environment.IsDevelopment())
 {

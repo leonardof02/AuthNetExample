@@ -14,9 +14,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ApplicantProfile> ApplicantProfiles => Set<ApplicantProfile>();
     public DbSet<RecruiterProfile> RecruiterProfiles => Set<RecruiterProfile>();
     public DbSet<TelegramSuscription> TelegramSuscriptions => Set<TelegramSuscription>();
+    public DbSet<Cv> Cvs => Set<Cv>();
 
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) {}
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 
@@ -134,6 +135,21 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.ChatId).IsUnique();
+        });
+
+        builder.Entity<Cv>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name).IsRequired();
+            entity.Property(e => e.Url).IsRequired();
+            entity.Property(e => e.UserId).IsRequired();
+
+            entity.HasOne<ApplicationUser>()
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .IsRequired()
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
